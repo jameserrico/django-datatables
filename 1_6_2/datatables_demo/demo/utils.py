@@ -27,7 +27,7 @@ def get_datatables_records(request, querySet, columnIndexNameMap, searchableColu
     if iSortingCols>0:
         for sortedColIndex in range(0, iSortingCols):
             sortedColName = columnIndexNameMap[int(request.GET['iSortCol_'+str(sortedColIndex)])]
-            sortingDirection = request.GET['iSortDir_'+str(sortedColIndex)]
+            sortingDirection = request.GET['sSortDir_'+str(sortedColIndex)]
             if sortingDirection == 'desc':
                 sortedColName = '-'+sortedColName
             asortingCols.append(sortedColName) 
@@ -38,7 +38,7 @@ def get_datatables_records(request, querySet, columnIndexNameMap, searchableColu
     if not 'sSearch' in request.GET or not request.GET['sSearch']:
         customSearch = '' #default value
     else:
-        customSearch = str(request.GET['sSearch']);
+        customSearch = request.GET['sSearch'].encode('utf-8');
     if customSearch != '':
         outputQ = None
         first = True
