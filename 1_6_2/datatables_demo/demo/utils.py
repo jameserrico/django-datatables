@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+from django.utils.cache import add_never_cache_headers
 
 def get_datatables_records(request, querySet, columnIndexNameMap, searchableColumns, jsonTemplatePath, *args):
 
@@ -66,4 +67,7 @@ def get_datatables_records(request, querySet, columnIndexNameMap, searchableColu
         sEcho = request.GET['sEcho'] #this is required by datatables 
     jstonString = render_to_string(jsonTemplatePath, locals())
     
-    return HttpResponse(jstonString, mimetype="application/javascript")
+    response = HttpResponse(jstonString, mimetype="application/javascript")
+    #prevent from caching datatables result
+    add_never_cache_headers(response)
+    return response
