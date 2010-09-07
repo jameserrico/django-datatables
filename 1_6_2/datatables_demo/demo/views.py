@@ -24,10 +24,8 @@ def get_countries_list(request):
     querySet = Country.objects.all()
     #columnIndexNameMap is required for correct sorting behavior
     columnIndexNameMap = { 0: 'id', 1 : 'name', 2: 'formal_name', 3: 'capital', 4: 'currency_code', 5: 'currency_name', 6: 'phone_prefix', 7: 'tld' }
-    #model fields listed in searchableColumns will be used for filtering (Search)
-    searchableColumns = ['name', 'formal_name', 'capital']
-    #path to template used to generate json
+    #path to template used to generate json (optional)
     jsonTemplatePath = 'demo/json_countries.txt'
 
     #call to generic function from utils
-    return get_datatables_records(request, querySet, columnIndexNameMap, searchableColumns, jsonTemplatePath)
+    return get_datatables_records(request, querySet, columnIndexNameMap, jsonTemplatePath)

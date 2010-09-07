@@ -10,6 +10,16 @@ $(document).ready(function() {
 		'sPaginationType': 'full_numbers', 
 		"bServerSide": true, 
 		"sAjaxSource": "{% url get_countries_list %}",
+		"aoColumns": [
+			{ "bSearchable": false},
+			{ "bSearchable": true},
+			{ "bSearchable": true},
+			{ "bSearchable": true},
+			{ "bSearchable": false},
+			{ "bSearchable": false},
+			{ "bSearchable": false},
+			{ "bSearchable": false},
+		]
 	});
 } );
 /* ]]> */

@@ -1,6 +1,6 @@
 Short description of datables_demo (Example application using datatables.net written in Django).
 
-This demo is pretty self-explanatory. It uses only basic django configuration and, we believe, can be easilu understood by django-beginners.
+This demo is pretty self-explanatory. It uses only basic django configuration and, we believe, can be easily understood by django-beginners.
 (This is not example of prettiest django project:), aim of this project was to expose code we developed recently to use with great datatables plugin).
 
 The directory 'datatables_demo' contains following files and subdirectories:

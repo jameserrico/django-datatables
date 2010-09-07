@@ -2,72 +2,89 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 from django.utils.cache import add_never_cache_headers
+from django.utils import simplejson
 
-def get_datatables_records(request, querySet, columnIndexNameMap, searchableColumns, jsonTemplatePath, *args):
+def get_datatables_records(request, querySet, columnIndexNameMap, jsonTemplatePath = None, *args):
+	"""
+	Usage: 
+		querySet: query set to draw data from.
+		columnIndexNameMap: field names in order to be displayed.
+		jsonTemplatePath: optional template file to generate custom json from.  If not provided it will generate the data directly from the model.
 
-    #Safety measure. If someone messes with iDisplayLength manually, we clip it to
-    #the max value of 100.
-    if not 'iDisplayLength' in request.GET or not request.GET['iDisplayLength']:
-        iDisplayLength = 10 # default value
-    else: 
-        iDisplayLength = min(int(request.GET['iDisplayLength']),100)
+	"""
+	
+	cols = int(request.GET.get('iColumns',0)) # Get the number of columns
+	iDisplayLength =  min(int(request.GET.get('iDisplayLength',10)),100)	 #Safety measure. If someone messes with iDisplayLength manually, we clip it to the max value of 100.
+	startRecord = int(request.GET.get('iDisplayStart',0)) # Where the data starts from (page)
+	endRecord = startRecord + iDisplayLength  # where the data ends (end of page)
+	
+	# Pass sColumns
+	keys = columnIndexNameMap.keys()
+	keys.sort()
+	colitems = [columnIndexNameMap[key] for key in keys]
+	sColumns = ",".join(map(str,colitems))
+	
+	# Ordering data
+	iSortingCols =  int(request.GET.get('iSortingCols',0))
+	asortingCols = []
+		
+	if iSortingCols:
+		for sortedColIndex in range(0, iSortingCols):
+			sortedColID = int(request.GET.get('iSortCol_'+str(sortedColIndex),0))
+			if request.GET.get('bSortable_{0}'.format(sortedColID), 'false')  == 'true':  # make sure the column is sortable first
+				sortedColName = columnIndexNameMap[sortedColID]
+				sortingDirection = request.GET.get('sSortDir_'+str(sortedColIndex), 'asc')
+				if sortingDirection == 'desc':
+					sortedColName = '-'+sortedColName
+				asortingCols.append(sortedColName) 
+		querySet = querySet.order_by(*asortingCols)
 
-    if not 'iDisplayStart' in request.GET or not request.GET['iDisplayStart']:
-        startRecord = 0 #default value
-    else:
-        startRecord = int(request.GET['iDisplayStart'])
-    endRecord = startRecord + iDisplayLength 
+	# Determine which columns are searchable
+	searchableColumns = []
+	for col in range(0,cols):
+		if request.GET.get('bSearchable_{0}'.format(col), False) == 'true': searchableColumns.append(columnIndexNameMap[col])
 
-    #apply ordering 
-    if not 'iSortingCols' in request.GET or not request.GET['iSortingCols']:
-        iSortingCols = 0 #default value
-    else:
-        iSortingCols = int(request.GET['iSortingCols'])
-    asortingCols = []
-    
-    if iSortingCols>0:
-        for sortedColIndex in range(0, iSortingCols):
-            sortedColName = columnIndexNameMap[int(request.GET['iSortCol_'+str(sortedColIndex)])]
-            sortingDirection = request.GET['sSortDir_'+str(sortedColIndex)]
-            if sortingDirection == 'desc':
-                sortedColName = '-'+sortedColName
-            asortingCols.append(sortedColName) 
-            
-        querySet = querySet.order_by(*asortingCols)
-    
-    #apply filtering by value sent by user
-    if not 'sSearch' in request.GET or not request.GET['sSearch']:
-        customSearch = '' #default value
-    else:
-        customSearch = request.GET['sSearch'].encode('utf-8');
-    if customSearch != '':
-        outputQ = None
-        first = True
-        for searchableColumn in searchableColumns:
-            kwargz = {searchableColumn+"__icontains" : customSearch}
-            q = Q(**kwargz)
-            if (first):
-                first = False
-                outputQ = q
-            else:
-                outputQ |= q
-        
-        querySet = querySet.filter(outputQ)
-        
-    #count how many records match the final criteria
-    iTotalRecords = iTotalDisplayRecords = querySet.count()
-    
-    #get the slice
-    querySet = querySet[startRecord:endRecord]
-    
-    #prepare the JSON with the response
-    if not 'sEcho' in request.GET or not request.GET['sEcho']:
-        sEcho = '0' #default value
-    else:
-        sEcho = request.GET['sEcho'] #this is required by datatables 
-    jstonString = render_to_string(jsonTemplatePath, locals())
-    
-    response = HttpResponse(jstonString, mimetype="application/javascript")
-    #prevent from caching datatables result
-    add_never_cache_headers(response)
-    return response
+	# Apply filtering by value sent by user
+	customSearch = request.GET.get('sSearch', '').encode('utf-8');
+	if customSearch != '':
+		outputQ = None
+		first = True
+		for searchableColumn in searchableColumns:
+			kwargz = {searchableColumn+"__icontains" : customSearch}
+			outputQ = outputQ | Q(**kwargz) if outputQ else Q(**kwargz)		
+		querySet = querySet.filter(outputQ)
+
+	# Individual column search 
+	outputQ = None
+	for col in range(0,cols):
+		if request.GET.get('sSearch_{0}'.format(col), False) > '' and request.GET.get('bSearchable_{0}'.format(col), False) == 'true':
+			kwargz = {columnIndexNameMap[col]+"__icontains" : request.GET['sSearch_{0}'.format(col)]}
+			outputQ = outputQ & Q(**kwargz) if outputQ else Q(**kwargz)
+	if outputQ: querySet = querySet.filter(outputQ)
+		
+	iTotalRecords = iTotalDisplayRecords = querySet.count() #count how many records match the final criteria
+	querySet = querySet[startRecord:endRecord] #get the slice
+	sEcho = int(request.GET.get('sEcho',0)) # required echo response
+	
+	if jsonTemplatePath:
+		jstonString = render_to_string(jsonTemplatePath, locals()) #prepare the JSON with the response, consider using : from django.template.defaultfilters import escapejs
+		response = HttpResponse(jstonString, mimetype="application/javascript")
+	else:
+		aaData = []
+		a = querySet.values() 
+		for row in a:
+			rowkeys = row.keys()
+			rowvalues = row.values()
+			rowlist = []
+			for col in range(0,len(colitems)):
+				for idx, val in enumerate(rowkeys):
+					if val == colitems[col]:
+						rowlist.append(str(rowvalues[idx]))
+			aaData.append(rowlist)
+		response_dict = {}
+		response_dict.update({'aaData':aaData})
+		response_dict.update({'sEcho': sEcho, 'iTotalRecords': iTotalRecords, 'iTotalDisplayRecords':iTotalDisplayRecords, 'sColumns':sColumns})
+		response =  HttpResponse(simplejson.dumps(response_dict), mimetype='application/javascript')
+	#prevent from caching datatables result
+	add_never_cache_headers(response)
+	return response
