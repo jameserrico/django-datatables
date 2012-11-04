@@ -11,12 +11,23 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASE_ENGINE = 'sqlite3'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = 'demo.db'             # Or path to database file if using sqlite3.
-DATABASE_USER = ''             # Not used with sqlite3.
-DATABASE_PASSWORD = ''         # Not used with sqlite3.
-DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
+#DATABASE_ENGINE = 'sqlite3'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+#DATABASE_NAME = 'demo.db'             # Or path to database file if using sqlite3.
+#DATABASE_USER = ''             # Not used with sqlite3.
+#DATABASE_PASSWORD = ''         # Not used with sqlite3.
+#DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
+#DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': 'demo.db',                      # Or path to database file if using sqlite3.
+        'USER': '',                      # Not used with sqlite3.
+        'PASSWORD': '',                  # Not used with sqlite3.
+        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
+        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
+    }
+
+}
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -53,11 +64,20 @@ ADMIN_MEDIA_PREFIX = '/media/'
 SECRET_KEY = '5(l$zc^a2exnpddi(m1hxzl*9u%hpwk+s%p=fxj$0!&o88y7cg'
 
 # List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.load_template_source',
-    'django.template.loaders.app_directories.load_template_source',
-#     'django.template.loaders.eggs.load_template_source',
-)
+if DEBUG:
+    TEMPLATE_LOADERS = [
+        'django.template.loaders.filesystem.Loader',
+        'django.template.loaders.app_directories.Loader',
+        ]
+else:
+    TEMPLATE_LOADERS = [
+        ('django.template.loaders.cached.Loader',(
+            'django.template.loaders.filesystem.Loader',
+            'django.template.loaders.app_directories.Loader',
+            'forum.modules.template_loader.module_templates_loader',
+            'forum.skins.load_template_source',
+            )),
+        ]
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
